@@ -12,6 +12,7 @@ import logging
 import traceback
 import os
 import threading
+from acronym_service import AcronymService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +28,7 @@ db.init_app(app)
 
 excel_data_changed = False
 data_initialized = False
+acronym_service = AcronymService()
 
 
 class ExcelHandler(FileSystemEventHandler):
@@ -67,6 +69,8 @@ def check_and_reload_data():
         logger.info("Reloading data from Excel...")
         with app.app_context():
             load_data(app)
+            subcategories = Subcategory.query.all()
+            initialize_search_index(subcategories)
         excel_data_changed = False
         logger.info("Data reload complete.")
         socketio.emit("data_reloaded", {"message": "Data has been reloaded"})
@@ -113,13 +117,18 @@ def search():
 
         results = search_data(query)
 
+        acronym_matches = acronym_service.find_matches(query)
+
         response = {
             "exact": any(m["match_type"] == "Exact Match" for m in results),
             "message": "Showing results" if results else "No matches found.",
             "matches": results,
+            "acronym_matches": acronym_matches,
         }
 
-        logger.info(f"Returning {len(results)} results")
+        logger.info(
+            f"Returning {len(results)} results and {len(acronym_matches)} acronym matches"
+        )
         return jsonify(response)
 
     except Exception as e:
@@ -170,6 +179,45 @@ def get_updates():
         logger.error(traceback.format_exc())
         return (
             jsonify({"error": "An internal server error occurred", "details": str(e)}),
+            500,
+        )
+
+
+@app.route("/api/acronyms/search", methods=["GET"])
+def search_acronyms():
+    query = request.args.get("query", "").strip()
+    logging.info(f"Received search request for query: {query}")
+    try:
+        matches = acronym_service.find_matches(query)
+        logging.info(f"Returning {len(matches)} matches for query: {query}")
+        return jsonify(matches)
+    except Exception as e:
+        logging.error(f"Error occurred while searching acronyms: {str(e)}")
+        return jsonify({"error": "An error occurred while searching acronyms"}), 500
+
+
+@app.route("/api/acronyms/suggest", methods=["POST"])
+def suggest_acronym():
+    try:
+        data = request.json
+        acronym = data.get("acronym")
+        expansion = data.get("expansion")
+        context = data.get("context")
+
+        if not acronym or not expansion:
+            return jsonify({"error": "Acronym and expansion are required"}), 400
+
+        success, message = acronym_service.suggest_acronym(acronym, expansion, context)
+        if success:
+            return jsonify({"message": message}), 200
+        else:
+            return jsonify({"error": message}), 500
+    except Exception as e:
+        logger.error(f"Error suggesting acronym: {str(e)}")
+        return (
+            jsonify(
+                {"error": "An unexpected error occurred while suggesting the acronym"}
+            ),
             500,
         )
 

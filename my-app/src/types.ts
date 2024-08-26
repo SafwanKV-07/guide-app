@@ -1,3 +1,5 @@
+// types.ts
+
 export interface SearchResult {
   main_folder: string;
   sub_folder: string;
@@ -5,7 +7,7 @@ export interface SearchResult {
   document_type_identification_rules: string;
   supporting_information: string;
   match_type: string;
-  score: number; 
+  score: number;
 }
 
 export interface Update {
@@ -17,8 +19,19 @@ export interface Update {
 }
 
 export interface Acronym {
+  id: number;
   acronym: string;
-  fullForm: string;
+  expansion: string;
+  context?: string;
+  approved: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AcronymMatch {
+  acronym: string;
+  expansion: string;
+  context?: string;
 }
 
 export interface SearchResponse {
@@ -26,4 +39,22 @@ export interface SearchResponse {
   message: string;
   matches: SearchResult[];
   corrected_query?: string | null;
+}
+
+export interface AcronymSuggestion {
+  acronym: string;
+  expansion: string;
+  context?: string;
+}
+
+export interface AcronymSearchResponse {
+  matches: AcronymMatch[];
+}
+
+export interface AcronymSuggestionResponse {
+  message: string;
+}
+
+export interface ErrorResponse {
+  error: string;
 }
