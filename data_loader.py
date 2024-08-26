@@ -50,9 +50,7 @@ def load_data(app):
 
             # Process main data sheets
             for sheet_name in wb.sheetnames:
-                if (
-                    sheet_name != "Updates"
-                ):  # Assuming "Updates" is the name of your updates sheet
+                if sheet_name != "Updates":
                     sheet = wb[sheet_name]
                     process_main_sheet(sheet)
 
